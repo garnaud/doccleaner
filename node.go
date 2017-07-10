@@ -7,11 +7,16 @@ import (
 )
 
 type Node struct {
-	name     string
-	leaf     bool
-	children []*Node
-	format   string
-	method   string
+	name        string
+	leaf        bool
+	children    []*Node
+	format      string
+	method      string
+	transformer *Transformer
+}
+
+type Transformer interface {
+	transform(value interface{}) interface{}
 }
 
 func (parent *Node) addChild(child *Node) *Node {
@@ -40,7 +45,7 @@ func (parent *Node) hasChild(childName string) (ok bool, child *Node) {
 	return false, nil
 }
 
-func (parent *Node) addLeaf(leaf, format, method string) (node *Node, err error) {
+func (parent *Node) addLeaf(leaf string, transformer *Transformer) (node *Node, err error) {
 	nodeNames := strings.Split(leaf, ".")
 	if nodeNames == nil || len(nodeNames) == 0 {
 		err = errors.New("can't split leaf " + leaf)
@@ -62,8 +67,21 @@ func (parent *Node) addLeaf(leaf, format, method string) (node *Node, err error)
 			currNode = currNode.addChild(lastNode)
 		}
 		currNode.leaf = true
-		currNode.format = format
-		currNode.method = method
+		currNode.transformer = transformer
 	}
 	return node, err
+}
+
+func (parent *Node) traverse(obj map[string]interface{}) (result string, err error) {
+	result = ""
+	for _, child := range parent.children {
+		if value, ok := obj[child.name]; ok {
+			if child.transformer == nil {
+				panic(errors.New("transformer nil" + child.name))
+			}
+			v := (*child.transformer).transform(value)
+			fmt.Printf("v = %+v\n", v)
+		}
+	}
+	return result, nil
 }

@@ -4,6 +4,13 @@ import "fmt"
 import "github.com/stretchr/testify/assert"
 import "testing"
 
+type constantTransformer struct {
+}
+
+func (c constantTransformer) transform(value interface{}) interface{} {
+	return "xxx"
+}
+
 //
 func TestAddChild(t *testing.T) {
 	node := Node{name: "parent"}
@@ -22,11 +29,11 @@ func TestAddChild(t *testing.T) {
 }
 func TestAddOneLeaf(t *testing.T) {
 	fmt.Println("TestAddOneLeaf")
-	//given
+	// given
 	root := Node{name: "root"}
 
 	// test
-	root.addLeaf("node1.node2.leaf", "%s", "avalue")
+	root.addLeaf("node1.node2.leaf", &constantTransformer{})
 
 	// check
 	assert.Len(t, root.children, 1, "root should have one child")
@@ -36,20 +43,18 @@ func TestAddOneLeaf(t *testing.T) {
 	assert.False(t, root.children[0].children[0].leaf, "node2 should be a leaf")
 	assert.Len(t, root.children[0].children[0].children, 1, "node2 should have one child")
 	assert.True(t, root.children[0].children[0].children[0].leaf, "node named 'leaf' should be a leaf")
-	assert.Equal(t, root.children[0].children[0].children[0].method, "avalue", "method of the leaf should be 'avalue'")
-	assert.Equal(t, root.children[0].children[0].children[0].format, "%s", "format of the leaf should be '%s'")
 }
 
 func TestAddLeaves(t *testing.T) {
 	fmt.Println("TestAddLeaves")
 
-	//given
+	// given
 	root := &Node{name: "root"}
 
 	// test
-	root.addLeaf("node1.node2.leaf1", "%s", "method1")
-	root.addLeaf("node1.node2.leaf2", "%s", "method2")
-	root.addLeaf("node1.node3.leaf3", "%s", "method3")
+	root.addLeaf("node1.node2.leaf1", &constantTransformer{})
+	root.addLeaf("node1.node2.leaf2", &constantTransformer{})
+	root.addLeaf("node1.node3.leaf3", &constantTransformer{})
 
 	// check
 	assert.Len(t, root.children, 1, "root should have one child")
@@ -61,4 +66,28 @@ func TestAddLeaves(t *testing.T) {
 	node3 := root.children[0].children[1]
 	assert.Len(t, node2.children, 2, "node2 should have two leaves")
 	assert.Len(t, node3.children, 1, "node3 should have one leaf")
+}
+
+func TestTraverseRoot(t *testing.T) {
+	// given
+	root := &Node{name: "root"}
+	root.addLeaf("node1", &constantTransformer{})
+	root.addLeaf("node2", &constantTransformer{})
+
+	obj := make(map[string]interface{})
+	obj["node1"] = "value"
+	obj["node2"] = "value"
+	obj["node3"] = "value"
+
+	expected := make(map[string]interface{})
+	expected["node1"] = "xxx"
+	expected["node2"] = "xxx"
+	expected["node3"] = "value"
+
+	// test
+	result, _ := root.traverse(obj)
+
+	// check
+	assert.Equal(t, "value", result, "from traverse is wrong")
+	assert.Equal(t, expected, obj)
 }
