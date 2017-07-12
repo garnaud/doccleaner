@@ -33,7 +33,7 @@ func TestAddOneLeaf(t *testing.T) {
 	root := Node{name: "root"}
 
 	// test
-	root.addLeaf("node1.node2.leaf", &constantTransformer{})
+	root.addLeaf("node1.node2.leaf", constantTransformer{})
 
 	// check
 	assert.Len(t, root.children, 1, "root should have one child")
@@ -73,6 +73,7 @@ func TestTraverseRoot(t *testing.T) {
 	root := &Node{name: "root"}
 	root.addLeaf("node1", &constantTransformer{})
 	root.addLeaf("node2", &constantTransformer{})
+	fmt.Printf("children: %+v\n", root.children[1])
 
 	obj := make(map[string]interface{})
 	obj["node1"] = "value"

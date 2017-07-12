@@ -45,7 +45,7 @@ func (parent *Node) hasChild(childName string) (ok bool, child *Node) {
 	return false, nil
 }
 
-func (parent *Node) addLeaf(leaf string, transformer *Transformer) (node *Node, err error) {
+func (parent *Node) addLeaf(leaf string, transformer Transformer) (node *Node, err error) {
 	nodeNames := strings.Split(leaf, ".")
 	if nodeNames == nil || len(nodeNames) == 0 {
 		err = errors.New("can't split leaf " + leaf)
@@ -66,8 +66,9 @@ func (parent *Node) addLeaf(leaf string, transformer *Transformer) (node *Node, 
 			lastNode := &Node{name: n, leaf: false}
 			currNode = currNode.addChild(lastNode)
 		}
-		currNode.leaf = true
-		currNode.transformer = transformer
+		node.leaf = true
+		node.transformer = &transformer
+		fmt.Printf("add transformer %+v to child %s -> %+v\n", transformer, node.name, node)
 	}
 	return node, err
 }
@@ -75,12 +76,15 @@ func (parent *Node) addLeaf(leaf string, transformer *Transformer) (node *Node, 
 func (parent *Node) traverse(obj map[string]interface{}) (result string, err error) {
 	result = ""
 	for _, child := range parent.children {
+		fmt.Printf("child: %+v\n", child)
 		if value, ok := obj[child.name]; ok {
-			if child.transformer == nil {
-				panic(errors.New("transformer nil" + child.name))
+			if child.leaf {
+				if child.transformer == nil {
+					panic(errors.New("transformer nil: " + child.name))
+				}
+				v := (*child.transformer).transform(value)
+				fmt.Printf("v = %+v\n", v)
 			}
-			v := (*child.transformer).transform(value)
-			fmt.Printf("v = %+v\n", v)
 		}
 	}
 	return result, nil
