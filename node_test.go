@@ -5,9 +5,16 @@ import "github.com/stretchr/testify/assert"
 import "testing"
 
 type constantTransformer struct {
+	changed []interface{}
 }
 
-func (c constantTransformer) transform(value interface{}) interface{} {
+func (c *constantTransformer) transform(value interface{}) interface{} {
+	if c.changed == nil {
+		c.changed = make([]interface{}, 0)
+	}
+
+	fmt.Printf("new change: %+v on existing change %+v\n", value, c.changed)
+	c.changed = append(c.changed, value)
 	return "xxx"
 }
 
@@ -33,7 +40,7 @@ func TestAddOneLeaf(t *testing.T) {
 	root := Node{name: "root"}
 
 	// test
-	root.addLeaf("node1.node2.leaf", constantTransformer{})
+	root.addLeaf("node1.node2.leaf", &constantTransformer{})
 
 	// check
 	assert.Len(t, root.children, 1, "root should have one child")
@@ -71,24 +78,21 @@ func TestAddLeaves(t *testing.T) {
 func TestTraverseRoot(t *testing.T) {
 	// given
 	root := &Node{name: "root"}
-	root.addLeaf("node1", &constantTransformer{})
-	root.addLeaf("node2", &constantTransformer{})
+	transformer := &constantTransformer{}
+	root.addLeaf("node1", transformer)
+	root.addLeaf("node2", transformer)
 	fmt.Printf("children: %+v\n", root.children[1])
 
 	obj := make(map[string]interface{})
-	obj["node1"] = "value"
-	obj["node2"] = "value"
-	obj["node3"] = "value"
+	obj["node1"] = "value1"
+	obj["node2"] = "value2"
+	obj["node3"] = "value3"
 
-	expected := make(map[string]interface{})
-	expected["node1"] = "xxx"
-	expected["node2"] = "xxx"
-	expected["node3"] = "value"
+	expected := []interface{}{"value1", "value2"}
 
 	// test
-	result, _ := root.traverse(obj)
+	root.traverse(obj)
 
 	// check
-	assert.Equal(t, "value", result, "from traverse is wrong")
-	assert.Equal(t, expected, obj)
+	assert.Equal(t, expected, transformer.changed)
 }

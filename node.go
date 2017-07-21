@@ -53,7 +53,7 @@ func (parent *Node) addLeaf(leaf string, transformer Transformer) (node *Node, e
 	}
 	if len(nodeNames) == 1 {
 		if ok, _ := parent.hasChild(leaf); !ok {
-			parent.addChild(&Node{name: leaf, leaf: true})
+			node = parent.addChild(&Node{name: leaf, leaf: true, transformer: &transformer})
 		}
 	} else {
 		node = &Node{name: nodeNames[0], leaf: false}
@@ -66,8 +66,9 @@ func (parent *Node) addLeaf(leaf string, transformer Transformer) (node *Node, e
 			lastNode := &Node{name: n, leaf: false}
 			currNode = currNode.addChild(lastNode)
 		}
-		node.leaf = true
-		node.transformer = &transformer
+		currNode.leaf = true
+		currNode.transformer = &transformer
+		node = currNode
 		fmt.Printf("add transformer %+v to child %s -> %+v\n", transformer, node.name, node)
 	}
 	return node, err
