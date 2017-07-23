@@ -27,24 +27,24 @@ func (c *constantTransformer) transform(value interface{}) (changed interface{},
 
 //
 func TestAddChild(t *testing.T) {
-	node := Node{name: "parent"}
+	n := node{name: "parent"}
 
-	if node.name != "parent" {
+	if n.name != "parent" {
 		t.Error("name field is not filled")
 	}
 
-	child := &Node{name: "child"}
-	node.addChild(child)
+	child := &node{name: "child"}
+	n.addChild(child)
 
-	if len(node.children) != 1 {
-		t.Errorf("child is not correctly add to its parent. Expected children 1 but got %d", len(node.children))
+	if len(n.children) != 1 {
+		t.Errorf("child is not correctly add to its parent. Expected children 1 but got %d", len(n.children))
 	}
 
 }
 func TestAddOneLeaf(t *testing.T) {
 	fmt.Println("TestAddOneLeaf")
 	// given
-	root := Node{name: "root"}
+	root := node{name: "root"}
 
 	// test
 	root.addLeaf("node1.node2.leaf", &constantTransformer{})
@@ -63,7 +63,7 @@ func TestAddLeaves(t *testing.T) {
 	fmt.Println("TestAddLeaves")
 
 	// given
-	root := &Node{name: "root"}
+	root := &node{name: "root"}
 
 	// test
 	root.addLeaf("node1.node2.leaf1", &constantTransformer{})
@@ -84,7 +84,7 @@ func TestAddLeaves(t *testing.T) {
 
 func TestTraverseRoot(t *testing.T) {
 	// given
-	root := &Node{name: "root"}
+	root := &node{name: "root"}
 	transformer := &constantTransformer{}
 	root.addLeaf("node1", transformer)
 	root.addLeaf("node2", transformer)
@@ -98,7 +98,7 @@ func TestTraverseRoot(t *testing.T) {
 	expected := []interface{}{"value1", "value2"}
 
 	// test
-	root.traverse(obj)
+	root.Traverse(obj)
 
 	// check
 	assert.Equal(t, expected, transformer.changed)
@@ -106,7 +106,7 @@ func TestTraverseRoot(t *testing.T) {
 
 func TestTraverseOneLevel(t *testing.T) {
 	// given
-	root := &Node{name: "root"}
+	root := &node{name: "root"}
 	transformer := &constantTransformer{}
 	root.addLeaf("node1", transformer)
 	root.addLeaf("node2.leaf2", transformer)
@@ -121,7 +121,7 @@ func TestTraverseOneLevel(t *testing.T) {
 	expected := []interface{}{"value1", "value2"}
 
 	// test
-	root.traverse(obj)
+	root.Traverse(obj)
 
 	// check
 	assert.Equal(t, expected, transformer.changed)
@@ -129,7 +129,7 @@ func TestTraverseOneLevel(t *testing.T) {
 
 func TestTraverseOneLevelWithArray(t *testing.T) {
 	// given
-	root := &Node{name: "root"}
+	root := &node{name: "root"}
 	transformer := &constantTransformer{}
 	root.addLeaf("node1", transformer)
 	root.addLeaf("node2.leaf2", transformer)
@@ -152,7 +152,7 @@ func TestTraverseOneLevelWithArray(t *testing.T) {
 	expected := []interface{}{"value1", "value2", "value2", "value4"}
 
 	// test
-	root.traverse(obj)
+	root.Traverse(obj)
 
 	// check
 	assert.Equal(t, expected, transformer.changed)
@@ -160,7 +160,7 @@ func TestTraverseOneLevelWithArray(t *testing.T) {
 
 func TestCompareJson(t *testing.T) {
 	// given
-	root := &Node{name: "root"}
+	root := &node{name: "root"}
 	transformer := &constantTransformer{}
 	root.addLeaf("node1", transformer)
 	root.addLeaf("node2.leaf2", transformer)
@@ -187,7 +187,7 @@ func TestCompareJson(t *testing.T) {
 	var obj map[string]interface{}
 	if err := json.Unmarshal([]byte(input), &obj); err == nil {
 		// test
-		root.traverse(obj)
+		root.Traverse(obj)
 
 		// check
 		output, _ := json.Marshal(obj)
