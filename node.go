@@ -77,14 +77,23 @@ func (parent *Node) addLeaf(leaf string, transformer Transformer) (node *Node, e
 func (parent *Node) traverse(obj map[string]interface{}) (result string, err error) {
 	result = ""
 	for _, child := range parent.children {
-		fmt.Printf("child: %+v\n", child)
 		if value, ok := obj[child.name]; ok {
 			if child.leaf {
 				if child.transformer == nil {
 					panic(errors.New("transformer nil: " + child.name))
 				}
-				v := (*child.transformer).transform(value)
-				fmt.Printf("v = %+v\n", v)
+				obj[child.name] = (*child.transformer).transform(value)
+			} else {
+				switch value.(type) {
+				default:
+					//  TODO logs...
+				case map[string]interface{}:
+					child.traverse(value.(map[string]interface{}))
+				case []interface{}:
+					for _, cvalue := range value.([]interface{}) {
+						child.traverse(cvalue.(map[string]interface{}))
+					}
+				}
 			}
 		}
 	}

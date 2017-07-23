@@ -1,5 +1,6 @@
 package node
 
+import "encoding/json"
 import "fmt"
 import "github.com/stretchr/testify/assert"
 import "testing"
@@ -95,4 +96,92 @@ func TestTraverseRoot(t *testing.T) {
 
 	// check
 	assert.Equal(t, expected, transformer.changed)
+}
+
+func TestTraverseOneLevel(t *testing.T) {
+	// given
+	root := &Node{name: "root"}
+	transformer := &constantTransformer{}
+	root.addLeaf("node1", transformer)
+	root.addLeaf("node2.leaf2", transformer)
+
+	obj := make(map[string]interface{})
+	obj["node1"] = "value1"
+	leaf2 := make(map[string]interface{})
+	leaf2["leaf2"] = "value2"
+	obj["node2"] = leaf2
+	obj["node3"] = "value3"
+
+	expected := []interface{}{"value1", "value2"}
+
+	// test
+	root.traverse(obj)
+
+	// check
+	assert.Equal(t, expected, transformer.changed)
+}
+
+func TestTraverseOneLevelWithArray(t *testing.T) {
+	// given
+	root := &Node{name: "root"}
+	transformer := &constantTransformer{}
+	root.addLeaf("node1", transformer)
+	root.addLeaf("node2.leaf2", transformer)
+	root.addLeaf("node2.leaf4", transformer)
+
+	obj := make(map[string]interface{})
+	obj["node1"] = "value1"
+
+	leaves1 := make(map[string]interface{})
+	leaves1["leaf2"] = "value2"
+	leaves1["leaf3"] = "value3"
+	leaves2 := make(map[string]interface{})
+	leaves2["leaf2"] = "value2"
+	leaves2["leaf4"] = "value4"
+	leaf2 := []interface{}{leaves1, leaves2}
+
+	obj["node2"] = leaf2
+	obj["node3"] = "value3"
+
+	expected := []interface{}{"value1", "value2", "value2", "value4"}
+
+	// test
+	root.traverse(obj)
+
+	// check
+	assert.Equal(t, expected, transformer.changed)
+}
+
+func TestCompareJson(t *testing.T) {
+	// given
+	root := &Node{name: "root"}
+	transformer := &constantTransformer{}
+	root.addLeaf("node1", transformer)
+	root.addLeaf("node2.leaf2", transformer)
+	root.addLeaf("node2.leaf4", transformer)
+
+	input := `{
+	"node1":"value1",
+	"node2":[{"leaf2":"value2","leaf3":"value3","leaf4":"value4"}],
+	"node3":"value3"
+ }`
+	expected := `{
+	"node1":"xxx",
+	"node2":[{"leaf2":"xxx","leaf3":"value3","leaf4":"xxx"}],
+	"node3":"value3"
+ }`
+
+	var obj map[string]interface{}
+	if err := json.Unmarshal([]byte(input), &obj); err == nil {
+		root.traverse(obj)
+
+		// test
+		output, _ := json.Marshal(obj)
+		fmt.Println(string(output))
+		assert.JSONEq(t, expected, string(output))
+
+	} else {
+		t.Error(err)
+	}
+
 }
