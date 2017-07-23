@@ -1,8 +1,10 @@
 package node
 
 import (
+	"bufio"
 	"errors"
 	"fmt"
+	"io"
 	"strings"
 )
 
@@ -100,4 +102,27 @@ func (parent *Node) traverse(obj map[string]interface{}) (err error) {
 		}
 	}
 	return err
+}
+
+type Traveler struct {
+	root *Node
+}
+
+func NewTraveler(configuration io.Reader, transformers map[string]Transformer) (traveler *Traveler) {
+	traveler = &Traveler{root: &Node{name: "root"}}
+
+	scanner := bufio.NewScanner(configuration)
+	for scanner.Scan() {
+		line := scanner.Text()
+		if strings.TrimSpace(line) == "" {
+			continue
+		}
+		splitted := strings.Split(line, "=")
+		traveler.root.addLeaf(strings.TrimSpace(splitted[0]), transformers[strings.TrimSpace(splitted[1])])
+	}
+	return
+}
+
+func (traveler *Traveler) Traverse(obj map[string]interface{}) (err error) {
+	return traveler.root.traverse(obj)
 }

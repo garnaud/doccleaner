@@ -3,6 +3,7 @@ package node
 import "encoding/json"
 import "fmt"
 import "github.com/stretchr/testify/assert"
+import "strings"
 import "testing"
 
 type constantTransformer struct {
@@ -189,6 +190,50 @@ func TestCompareJson(t *testing.T) {
 		root.traverse(obj)
 
 		// check
+		output, _ := json.Marshal(obj)
+		assert.JSONEq(t, expected, string(output))
+	} else {
+		t.Error(err)
+	}
+}
+
+func TestTraverseFromConfiguration(t *testing.T) {
+	// given
+	config := `
+	leaf1=constantTransfo
+	node2.leaf2 =constantTransfo
+	node2.leaf4= constantTransfo
+  node3.node31.node311.node3111.leaf32 = constantTransfo
+	leaf4=constantTransfo
+	node5.node51.node511.leaf5=constantTransfo
+	`
+	transformers := make(map[string]Transformer)
+	transformers["constantTransfo"] = &constantTransformer{}
+	traveler := NewTraveler(strings.NewReader(config), transformers)
+
+	input := `{
+	 "leaf1":"value1",
+	 "node2":[{"leaf2":"value2","leaf3":"value3","leaf4":"value4"}],
+	 "node3":[{"node31":[{"node311":{"node3111":[{"leaf31":"abc"},{"leaf32":"cde"}]}}]}],
+	 "leaf4":666,
+	 "node5":[{"node51":{"node511":{"leaf5":5111}}}]
+  }`
+	expected := `{
+	 "leaf1":"xxx",
+	 "node2":[{"leaf2":"xxx","leaf3":"value3","leaf4":"xxx"}],
+	 "node3":[{"node31":[{"node311":{"node3111":[{"leaf31":"abc"},{"leaf32":"xxx"}]}}]}],
+	 "leaf4":1234,
+	 "node5":[{"node51":{"node511":{"leaf5":1234}}}]
+  }`
+
+	var obj map[string]interface{}
+	if err := json.Unmarshal([]byte(input), &obj); err == nil {
+		// test
+		traveler.Traverse(obj)
+
+		// check
+		assert.NotNil(t, traveler.root)
+		assert.Len(t, traveler.root.children, 5)
 		output, _ := json.Marshal(obj)
 		assert.JSONEq(t, expected, string(output))
 	} else {
