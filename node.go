@@ -6,6 +6,7 @@ import (
 	"strings"
 )
 
+// Node for storing path object to transform
 type Node struct {
 	name        string
 	leaf        bool
@@ -15,10 +16,12 @@ type Node struct {
 	transformer *Transformer
 }
 
+// Transformer for change a value to an other
 type Transformer interface {
-	transform(value interface{}) interface{}
+	transform(value interface{}) (changed interface{}, err error)
 }
 
+// addChild adds a child to the current node
 func (parent *Node) addChild(child *Node) *Node {
 	fmt.Printf("try to add node = %+v\n", child.name)
 	if parent.children == nil {
@@ -36,6 +39,7 @@ func (parent *Node) addChild(child *Node) *Node {
 	return child
 }
 
+// hasChild return true if this node as a child with the given name
 func (parent *Node) hasChild(childName string) (ok bool, child *Node) {
 	for _, child = range parent.children {
 		if childName == child.name {
@@ -45,6 +49,7 @@ func (parent *Node) hasChild(childName string) (ok bool, child *Node) {
 	return false, nil
 }
 
+// addLeaf adds a leaf in format 'node1.node2.leaf' and with the corresponding transformer
 func (parent *Node) addLeaf(leaf string, transformer Transformer) (node *Node, err error) {
 	nodeNames := strings.Split(leaf, ".")
 	if nodeNames == nil || len(nodeNames) == 0 {
@@ -74,15 +79,12 @@ func (parent *Node) addLeaf(leaf string, transformer Transformer) (node *Node, e
 	return node, err
 }
 
-func (parent *Node) traverse(obj map[string]interface{}) (result string, err error) {
-	result = ""
+// traverse object and apply transform functions on leaves
+func (parent *Node) traverse(obj map[string]interface{}) (err error) {
 	for _, child := range parent.children {
 		if value, ok := obj[child.name]; ok {
 			if child.leaf {
-				if child.transformer == nil {
-					panic(errors.New("transformer nil: " + child.name))
-				}
-				obj[child.name] = (*child.transformer).transform(value)
+				obj[child.name], err = (*child.transformer).transform(value)
 			} else {
 				switch value.(type) {
 				default:
@@ -97,5 +99,5 @@ func (parent *Node) traverse(obj map[string]interface{}) (result string, err err
 			}
 		}
 	}
-	return result, nil
+	return err
 }

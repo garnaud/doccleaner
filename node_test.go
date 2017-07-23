@@ -9,14 +9,19 @@ type constantTransformer struct {
 	changed []interface{}
 }
 
-func (c *constantTransformer) transform(value interface{}) interface{} {
+func (c *constantTransformer) transform(value interface{}) (changed interface{}, err error) {
 	if c.changed == nil {
 		c.changed = make([]interface{}, 0)
 	}
 
 	fmt.Printf("new change: %+v on existing change %+v\n", value, c.changed)
 	c.changed = append(c.changed, value)
-	return "xxx"
+	switch value.(type) {
+	default:
+		return "xxx", nil
+	case int, float64:
+		return 1234, nil
+	}
 }
 
 //
@@ -159,27 +164,33 @@ func TestCompareJson(t *testing.T) {
 	root.addLeaf("node1", transformer)
 	root.addLeaf("node2.leaf2", transformer)
 	root.addLeaf("node2.leaf4", transformer)
+	root.addLeaf("node3.node31.node311.node3111.leaf32", transformer)
+	root.addLeaf("node4", transformer)
+	root.addLeaf("node5.node51.node511.leaf5", transformer)
 
 	input := `{
-	"node1":"value1",
-	"node2":[{"leaf2":"value2","leaf3":"value3","leaf4":"value4"}],
-	"node3":"value3"
- }`
+	 "node1":"value1",
+	 "node2":[{"leaf2":"value2","leaf3":"value3","leaf4":"value4"}],
+	 "node3":[{"node31":[{"node311":{"node3111":[{"leaf31":"abc"},{"leaf32":"cde"}]}}]}],
+	 "node4":666,
+	 "node5":[{"node51":{"node511":{"leaf5":5111}}}]
+  }`
 	expected := `{
-	"node1":"xxx",
-	"node2":[{"leaf2":"xxx","leaf3":"value3","leaf4":"xxx"}],
-	"node3":"value3"
- }`
+	 "node1":"xxx",
+	 "node2":[{"leaf2":"xxx","leaf3":"value3","leaf4":"xxx"}],
+	 "node3":[{"node31":[{"node311":{"node3111":[{"leaf31":"abc"},{"leaf32":"xxx"}]}}]}],
+	 "node4":1234,
+	 "node5":[{"node51":{"node511":{"leaf5":1234}}}]
+  }`
 
 	var obj map[string]interface{}
 	if err := json.Unmarshal([]byte(input), &obj); err == nil {
+		// test
 		root.traverse(obj)
 
-		// test
+		// check
 		output, _ := json.Marshal(obj)
-		fmt.Println(string(output))
 		assert.JSONEq(t, expected, string(output))
-
 	} else {
 		t.Error(err)
 	}
