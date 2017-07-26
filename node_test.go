@@ -6,11 +6,11 @@ import "github.com/stretchr/testify/assert"
 import "strings"
 import "testing"
 
-type constantTransformer struct {
+type constantValueCleaner struct {
 	changed []interface{}
 }
 
-func (c *constantTransformer) transform(value interface{}) (changed interface{}, err error) {
+func (c *constantValueCleaner) clean(value interface{}) (changed interface{}, err error) {
 	if c.changed == nil {
 		c.changed = make([]interface{}, 0)
 	}
@@ -47,7 +47,7 @@ func TestAddOneLeaf(t *testing.T) {
 	root := node{name: "root"}
 
 	// test
-	root.addLeaf("node1.node2.leaf", &constantTransformer{})
+	root.addLeaf("node1.node2.leaf", &constantValueCleaner{})
 
 	// check
 	assert.Len(t, root.children, 1, "root should have one child")
@@ -66,9 +66,9 @@ func TestAddLeaves(t *testing.T) {
 	root := &node{name: "root"}
 
 	// test
-	root.addLeaf("node1.node2.leaf1", &constantTransformer{})
-	root.addLeaf("node1.node2.leaf2", &constantTransformer{})
-	root.addLeaf("node1.node3.leaf3", &constantTransformer{})
+	root.addLeaf("node1.node2.leaf1", &constantValueCleaner{})
+	root.addLeaf("node1.node2.leaf2", &constantValueCleaner{})
+	root.addLeaf("node1.node3.leaf3", &constantValueCleaner{})
 
 	// check
 	assert.Len(t, root.children, 1, "root should have one child")
@@ -82,12 +82,12 @@ func TestAddLeaves(t *testing.T) {
 	assert.Len(t, node3.children, 1, "node3 should have one leaf")
 }
 
-func TestTraverseRoot(t *testing.T) {
+func TestCleanRoot(t *testing.T) {
 	// given
 	root := &node{name: "root"}
-	transformer := &constantTransformer{}
-	root.addLeaf("node1", transformer)
-	root.addLeaf("node2", transformer)
+	cleaner := &constantValueCleaner{}
+	root.addLeaf("node1", cleaner)
+	root.addLeaf("node2", cleaner)
 	fmt.Printf("children: %+v\n", root.children[1])
 
 	obj := make(map[string]interface{})
@@ -98,18 +98,18 @@ func TestTraverseRoot(t *testing.T) {
 	expected := []interface{}{"value1", "value2"}
 
 	// test
-	root.Traverse(obj)
+	root.Clean(obj)
 
 	// check
-	assert.Equal(t, expected, transformer.changed)
+	assert.Equal(t, expected, cleaner.changed)
 }
 
-func TestTraverseOneLevel(t *testing.T) {
+func TestCleanOneLevel(t *testing.T) {
 	// given
 	root := &node{name: "root"}
-	transformer := &constantTransformer{}
-	root.addLeaf("node1", transformer)
-	root.addLeaf("node2.leaf2", transformer)
+	cleaner := &constantValueCleaner{}
+	root.addLeaf("node1", cleaner)
+	root.addLeaf("node2.leaf2", cleaner)
 
 	obj := make(map[string]interface{})
 	obj["node1"] = "value1"
@@ -121,19 +121,19 @@ func TestTraverseOneLevel(t *testing.T) {
 	expected := []interface{}{"value1", "value2"}
 
 	// test
-	root.Traverse(obj)
+	root.Clean(obj)
 
 	// check
-	assert.Equal(t, expected, transformer.changed)
+	assert.Equal(t, expected, cleaner.changed)
 }
 
-func TestTraverseOneLevelWithArray(t *testing.T) {
+func TestCleanOneLevelWithArray(t *testing.T) {
 	// given
 	root := &node{name: "root"}
-	transformer := &constantTransformer{}
-	root.addLeaf("node1", transformer)
-	root.addLeaf("node2.leaf2", transformer)
-	root.addLeaf("node2.leaf4", transformer)
+	cleaner := &constantValueCleaner{}
+	root.addLeaf("node1", cleaner)
+	root.addLeaf("node2.leaf2", cleaner)
+	root.addLeaf("node2.leaf4", cleaner)
 
 	obj := make(map[string]interface{})
 	obj["node1"] = "value1"
@@ -152,52 +152,13 @@ func TestTraverseOneLevelWithArray(t *testing.T) {
 	expected := []interface{}{"value1", "value2", "value2", "value4"}
 
 	// test
-	root.Traverse(obj)
+	root.Clean(obj)
 
 	// check
-	assert.Equal(t, expected, transformer.changed)
+	assert.Equal(t, expected, cleaner.changed)
 }
 
-func TestCompareJson(t *testing.T) {
-	// given
-	root := &node{name: "root"}
-	transformer := &constantTransformer{}
-	root.addLeaf("node1", transformer)
-	root.addLeaf("node2.leaf2", transformer)
-	root.addLeaf("node2.leaf4", transformer)
-	root.addLeaf("node3.node31.node311.node3111.leaf32", transformer)
-	root.addLeaf("node4", transformer)
-	root.addLeaf("node5.node51.node511.leaf5", transformer)
-
-	input := `{
-	 "node1":"value1",
-	 "node2":[{"leaf2":"value2","leaf3":"value3","leaf4":"value4"}],
-	 "node3":[{"node31":[{"node311":{"node3111":[{"leaf31":"abc"},{"leaf32":"cde"}]}}]}],
-	 "node4":666,
-	 "node5":[{"node51":{"node511":{"leaf5":5111}}}]
-  }`
-	expected := `{
-	 "node1":"xxx",
-	 "node2":[{"leaf2":"xxx","leaf3":"value3","leaf4":"xxx"}],
-	 "node3":[{"node31":[{"node311":{"node3111":[{"leaf31":"abc"},{"leaf32":"xxx"}]}}]}],
-	 "node4":1234,
-	 "node5":[{"node51":{"node511":{"leaf5":1234}}}]
-  }`
-
-	var obj map[string]interface{}
-	if err := json.Unmarshal([]byte(input), &obj); err == nil {
-		// test
-		root.Traverse(obj)
-
-		// check
-		output, _ := json.Marshal(obj)
-		assert.JSONEq(t, expected, string(output))
-	} else {
-		t.Error(err)
-	}
-}
-
-func TestTraverseFromConfiguration(t *testing.T) {
+func TestCleanFromConfiguration(t *testing.T) {
 	// given
 	config := `
 	leaf1=constantTransfo
@@ -207,9 +168,9 @@ func TestTraverseFromConfiguration(t *testing.T) {
 	leaf4=constantTransfo
 	node5.node51.node511.leaf5=constantTransfo
 	`
-	transformers := make(map[string]Transformer)
-	transformers["constantTransfo"] = &constantTransformer{}
-	traveler := NewTraveler(strings.NewReader(config), transformers)
+	cleaners := make(map[string]ValueCleaner)
+	cleaners["constantTransfo"] = &constantValueCleaner{}
+	jsonCleaner := NewJsonCleaner(strings.NewReader(config), cleaners)
 
 	input := `{
 	 "leaf1":"value1",
@@ -229,11 +190,11 @@ func TestTraverseFromConfiguration(t *testing.T) {
 	var obj map[string]interface{}
 	if err := json.Unmarshal([]byte(input), &obj); err == nil {
 		// test
-		traveler.Traverse(obj)
+		jsonCleaner.Clean(obj)
 
 		// check
-		assert.NotNil(t, traveler.root)
-		assert.Len(t, traveler.root.children, 5)
+		assert.NotNil(t, jsonCleaner.root)
+		assert.Len(t, jsonCleaner.root.children, 5)
 		output, _ := json.Marshal(obj)
 		assert.JSONEq(t, expected, string(output))
 	} else {
