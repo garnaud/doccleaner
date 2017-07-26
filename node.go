@@ -3,6 +3,7 @@ package node
 import (
 	"bufio"
 	"errors"
+	"fmt"
 	"io"
 	"strings"
 )
@@ -30,8 +31,9 @@ func NewJsonCleaner(configuration io.Reader, cleaners map[string]ValueCleaner) (
 }
 
 // Clean object to change value
-func (jsonCleaner *JsonCleaner) Clean(obj map[string]interface{}) (err error) {
-	return jsonCleaner.root.Clean(obj)
+func (jsonCleaner *JsonCleaner) Clean(obj interface{}) (err error) {
+	_, err = jsonCleaner.root.clean(obj)
+	return err
 }
 
 // node for storing path object to clean
@@ -41,7 +43,7 @@ type node struct {
 	children []*node
 	format   string
 	method   string
-	cleaner  *ValueCleaner
+	cleaner  ValueCleaner
 }
 
 // ValueCleaner for change a value to an other
@@ -82,7 +84,7 @@ func (parent *node) addLeaf(leaf string, cleaner ValueCleaner) (n *node, err err
 	}
 	if len(nodeNames) == 1 {
 		if ok, _ := parent.hasChild(leaf); !ok {
-			n = parent.addChild(&node{name: leaf, leaf: true, cleaner: &cleaner})
+			n = parent.addChild(&node{name: leaf, leaf: true, cleaner: cleaner})
 		}
 	} else {
 		n = &node{name: nodeNames[0], leaf: false}
@@ -94,31 +96,44 @@ func (parent *node) addLeaf(leaf string, cleaner ValueCleaner) (n *node, err err
 			currNode = currNode.addChild(lastNode)
 		}
 		currNode.leaf = true
-		currNode.cleaner = &cleaner
+		currNode.cleaner = cleaner
 		n = currNode
 	}
 	return n, err
 }
 
 // Clean object and apply clean functions on leaves
-func (parent *node) Clean(obj map[string]interface{}) (err error) {
-	for _, child := range parent.children {
-		if value, ok := obj[child.name]; ok {
-			if child.leaf {
-				obj[child.name], err = (*child.cleaner).clean(value)
-			} else {
-				switch value.(type) {
-				default:
-					//  TODO logs...
-				case map[string]interface{}:
-					child.Clean(value.(map[string]interface{}))
-				case []interface{}:
-					for _, cvalue := range value.([]interface{}) {
-						child.Clean(cvalue.(map[string]interface{}))
-					}
-				}
+func (parent *node) clean(obj interface{}) (objres interface{}, err error) {
+	objres = obj
+	switch obj.(type) {
+	case []interface{}:
+		for i, subobj := range obj.([]interface{}) {
+			if objres, err = parent.clean(subobj); err == nil {
+				obj.([]interface{})[i] = objres
 			}
 		}
+	case map[string]interface{}:
+		objmap := obj.(map[string]interface{})
+		for _, child := range parent.children {
+			subobj, exists := objmap[child.name]
+			if !exists {
+				continue
+			}
+			if child.leaf {
+				// leaf case
+				objmap[child.name], err = child.cleaner.clean(subobj)
+			} else {
+				child.clean(subobj)
+			}
+		}
+	default:
+		switch len(parent.children) {
+		case 0: // TODO nothing to clean
+		case 1:
+			objres, err = parent.children[0].cleaner.clean(obj)
+			fmt.Printf("change single value %s to %s\n ", obj, objres)
+		default: // TODO log problem too many children
+		}
 	}
-	return err
+	return
 }

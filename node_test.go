@@ -98,7 +98,7 @@ func TestCleanRoot(t *testing.T) {
 	expected := []interface{}{"value1", "value2"}
 
 	// test
-	root.Clean(obj)
+	root.clean(obj)
 
 	// check
 	assert.Equal(t, expected, cleaner.changed)
@@ -121,7 +121,7 @@ func TestCleanOneLevel(t *testing.T) {
 	expected := []interface{}{"value1", "value2"}
 
 	// test
-	root.Clean(obj)
+	root.clean(obj)
 
 	// check
 	assert.Equal(t, expected, cleaner.changed)
@@ -152,7 +152,7 @@ func TestCleanOneLevelWithArray(t *testing.T) {
 	expected := []interface{}{"value1", "value2", "value2", "value4"}
 
 	// test
-	root.Clean(obj)
+	root.clean(obj)
 
 	// check
 	assert.Equal(t, expected, cleaner.changed)
@@ -200,5 +200,56 @@ func TestCleanFromConfiguration(t *testing.T) {
 	} else {
 		t.Error(err)
 	}
+}
 
+func TestSimpleArray(t *testing.T) {
+	// given
+	config := `
+	leaf1=constantTransfo
+	`
+	cleaners := make(map[string]ValueCleaner)
+	cleaners["constantTransfo"] = &constantValueCleaner{}
+	jsonCleaner := NewJsonCleaner(strings.NewReader(config), cleaners)
+
+	input := `["tata","toto","tutu"]`
+	expected := `["xxx","xxx","xxx"]`
+
+	var obj interface{}
+	if err := json.Unmarshal([]byte(input), &obj); err == nil {
+		// test
+		jsonCleaner.Clean(obj)
+
+		// check
+		assert.NotNil(t, jsonCleaner.root)
+		output, _ := json.Marshal(obj)
+		assert.JSONEq(t, expected, string(output))
+	} else {
+		t.Error(err)
+	}
+}
+
+func TestMapArray(t *testing.T) {
+	// given
+	config := `
+	leaf1=constantTransfo
+	`
+	cleaners := make(map[string]ValueCleaner)
+	cleaners["constantTransfo"] = &constantValueCleaner{}
+	jsonCleaner := NewJsonCleaner(strings.NewReader(config), cleaners)
+
+	input := `[{"leaf1":"value1","leaf2":"value2"}]`
+	expected := `[{"leaf1":"xxx","leaf2":"value2"}]`
+
+	var obj interface{}
+	if err := json.Unmarshal([]byte(input), &obj); err == nil {
+		// test
+		jsonCleaner.Clean(obj)
+
+		// check
+		assert.NotNil(t, jsonCleaner.root)
+		output, _ := json.Marshal(obj)
+		assert.JSONEq(t, expected, string(output))
+	} else {
+		t.Error(err)
+	}
 }
