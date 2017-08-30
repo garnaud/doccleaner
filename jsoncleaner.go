@@ -1,4 +1,4 @@
-package node
+package jsoncleaner
 
 import (
 	"bufio"
@@ -48,7 +48,7 @@ type node struct {
 
 // ValueCleaner for change a value to an other
 type ValueCleaner interface {
-	clean(value interface{}) (changed interface{}, err error)
+	Clean(value interface{}) (changed interface{}, err error)
 }
 
 // addChild adds a child to the current node
@@ -121,16 +121,18 @@ func (parent *node) clean(obj interface{}) (objres interface{}, err error) {
 			}
 			if child.leaf {
 				// leaf case
-				objmap[child.name], err = child.cleaner.clean(subobj)
+				objmap[child.name], err = child.cleaner.Clean(subobj)
 			} else {
 				child.clean(subobj)
 			}
 		}
 	default:
+		fmt.Printf("obj type %T\n", obj)
 		switch len(parent.children) {
 		case 0: // TODO nothing to clean
 		case 1:
-			objres, err = parent.children[0].cleaner.clean(obj)
+			fmt.Printf("change single value %s,\n child %+v,\n ", obj, parent.children[0])
+			objres, err = parent.children[0].cleaner.Clean(obj)
 			fmt.Printf("change single value %s to %s\n ", obj, objres)
 		default: // TODO log problem too many children
 		}

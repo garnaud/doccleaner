@@ -1,4 +1,4 @@
-package node
+package jsoncleaner
 
 import "encoding/json"
 import "fmt"
@@ -10,7 +10,7 @@ type constantValueCleaner struct {
 	changed []interface{}
 }
 
-func (c *constantValueCleaner) clean(value interface{}) (changed interface{}, err error) {
+func (c *constantValueCleaner) Clean(value interface{}) (changed interface{}, err error) {
 	if c.changed == nil {
 		c.changed = make([]interface{}, 0)
 	}
