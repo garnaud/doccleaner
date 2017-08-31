@@ -3,7 +3,7 @@ package jsoncleaner
 import (
 	"bufio"
 	"errors"
-	"fmt"
+	"gopkg.in/mgo.v2/bson"
 	"io"
 	"strings"
 )
@@ -112,6 +112,20 @@ func (parent *node) clean(obj interface{}) (objres interface{}, err error) {
 				obj.([]interface{})[i] = objres
 			}
 		}
+	case bson.M:
+		objmap := obj.(bson.M)
+		for _, child := range parent.children {
+			subobj, exists := objmap[child.name]
+			if !exists {
+				continue
+			}
+			if child.leaf {
+				// leaf case
+				objmap[child.name], err = child.cleaner.Clean(subobj)
+			} else {
+				child.clean(subobj)
+			}
+		}
 	case map[string]interface{}:
 		objmap := obj.(map[string]interface{})
 		for _, child := range parent.children {
@@ -127,13 +141,10 @@ func (parent *node) clean(obj interface{}) (objres interface{}, err error) {
 			}
 		}
 	default:
-		fmt.Printf("obj type %T\n", obj)
 		switch len(parent.children) {
 		case 0: // TODO nothing to clean
 		case 1:
-			fmt.Printf("change single value %s,\n child %+v,\n ", obj, parent.children[0])
 			objres, err = parent.children[0].cleaner.Clean(obj)
-			fmt.Printf("change single value %s to %s\n ", obj, objres)
 		default: // TODO log problem too many children
 		}
 	}
