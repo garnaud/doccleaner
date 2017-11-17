@@ -42,8 +42,15 @@ func newMethodInfo(cleaner ValueCleaner) methodInfo {
 	}
 }
 
-// NewDocCleaner creates a cleaner
-func NewDocCleaner(configuration io.Reader, cleaners map[string]ValueCleaner) (docCleaner *DocCleaner) {
+// NewDocCleaner creates a cleaner with default cleaner methods
+func NewDocCleaner(configuration io.Reader) (docCleaner *DocCleaner) {
+	cleaners := make(map[string]ValueCleaner)
+	cleaners["set"] = &Set{}
+	return NewDocCleanerFromConfig(configuration, cleaners)
+}
+
+// NewDocCleanerFromConfig creates a cleaner with default cleaners
+func NewDocCleanerFromConfig(configuration io.Reader, cleaners map[string]ValueCleaner) (docCleaner *DocCleaner) {
 	docCleaner = &DocCleaner{root: &configNode{pathItem: "root"}, cleaners: cleaners}
 	var paths map[string]methodInfo
 	toml.DecodeReader(configuration, &paths)
@@ -120,6 +127,19 @@ func (parent *configNode) addLeaf(leaf string, cleaner methodInfo) (n *configNod
 		n = currNode
 	}
 	return n, err
+}
+
+// Set type allowed to replace current value by a given value
+type Set struct {
+}
+
+// Clean value method
+func (s Set) Clean(value interface{}, args ...interface{}) (changed interface{}, err error) {
+	if len(args) == 0 {
+		return value, nil
+	}
+	spew.Printf("clean %#+v to %#+v\n", value, args[0])
+	return args[0], nil
 }
 
 // clean object and apply clean functions on leaves

@@ -7,6 +7,7 @@ import "gopkg.in/mgo.v2/bson"
 import "github.com/stretchr/testify/assert"
 import "strings"
 import "testing"
+import "time"
 
 type constantValueCleaner struct {
 	changed []interface{}
@@ -71,7 +72,7 @@ args=[]
 
 	cleaners := make(map[string]doccleaner.ValueCleaner)
 	cleaners["constantTransfo"] = &constantValueCleaner{}
-	docCleaner := doccleaner.NewDocCleaner(strings.NewReader(config), cleaners)
+	docCleaner := doccleaner.NewDocCleanerFromConfig(strings.NewReader(config), cleaners)
 
 	var obj map[string]interface{}
 	if err := json.Unmarshal([]byte(input), &obj); err == nil {
@@ -96,7 +97,7 @@ func TestTooSimpleBsonClean(t *testing.T) {
 `
 	cleaners := make(map[string]doccleaner.ValueCleaner)
 	cleaners["constantTransfo"] = &constantValueCleaner{}
-	docCleaner := doccleaner.NewDocCleaner(strings.NewReader(config), cleaners)
+	docCleaner := doccleaner.NewDocCleanerFromConfig(strings.NewReader(config), cleaners)
 	doc := bson.M{}
 	doc["leaf1"] = "toto"
 	expected := `{"leaf1":"xxx"}`
@@ -121,7 +122,7 @@ func TestSimpleArray(t *testing.T) {
 `
 	cleaners := make(map[string]doccleaner.ValueCleaner)
 	cleaners["constantTransfo"] = &constantValueCleaner{}
-	docCleaner := doccleaner.NewDocCleaner(strings.NewReader(config), cleaners)
+	docCleaner := doccleaner.NewDocCleanerFromConfig(strings.NewReader(config), cleaners)
 
 	input := `["tata","toto","tutu"]`
 	expected := `["xxx","xxx","xxx"]`
@@ -148,7 +149,7 @@ func TestMapArray(t *testing.T) {
 	`
 	cleaners := make(map[string]doccleaner.ValueCleaner)
 	cleaners["constantTransfo"] = &constantValueCleaner{}
-	docCleaner := doccleaner.NewDocCleaner(strings.NewReader(config), cleaners)
+	docCleaner := doccleaner.NewDocCleanerFromConfig(strings.NewReader(config), cleaners)
 
 	input := `[{"leaf1":"value1","leaf2":"value2"}]`
 	expected := `[{"leaf1":"xxx","leaf2":"value2"}]`
@@ -170,21 +171,28 @@ func TestBson(t *testing.T) {
 	// given
 	config := `
   ["customers.iuc"]
-	"method"="constantTransfo"
+	"method"="set"
+	"args" = ["xxx"]
   ["numid"]
-	"method"="constantTransfo"
+	"method"="set"
+	"args" = [1234]
 	["customers.wife.name"]
-	"method"="constantTransfo"
+	"method"="set"
+	"args" = ["yyy"]
+	["customers.wife.birthdate"]
+	"method"="set"
+	"args" = [1979-05-27T07:32:00Z]
 	`
-	customer := bson.M{"iuc": "1234", "firstname": "homer", "lastname": "simpson", "wife": bson.M{"name": "marge"}}
+	birth, _ := time.Parse("yyyy-MM-ddTHH:mm:ss", "1979-05-27T07:32:00Z")
+	customer := bson.M{"iuc": "1234", "firstname": "homer", "lastname": "simpson", "wife": bson.M{"name": "marge", "birthdate": birth}}
 	customers := make([]bson.M, 1)
 	customers[0] = customer
 	input := bson.M{"customers": customers, "numid": 321}
 
 	cleaners := make(map[string]doccleaner.ValueCleaner)
 	cleaners["constantTransfo"] = &constantValueCleaner{}
-	docCleaner := doccleaner.NewDocCleaner(strings.NewReader(config), cleaners)
-	expected := `{"customers":[{"iuc":"xxx","firstname":"homer","lastname":"simpson","wife":{"name":"xxx"}}],"numid":1234}`
+	docCleaner := doccleaner.NewDocCleaner(strings.NewReader(config))
+	expected := `{"customers":[{"iuc":"xxx","firstname":"homer","lastname":"simpson","wife":{"name":"yyy","birthdate":"1979-05-27T07:32:00Z"}}],"numid":1234}`
 
 	// test
 	docCleaner.Clean(input)
