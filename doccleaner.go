@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/BurntSushi/toml"
+	"github.com/davecgh/go-spew/spew"
 	"gopkg.in/mgo.v2/bson"
 	"io"
 	"strings"
@@ -123,31 +124,39 @@ func (parent *configNode) addLeaf(leaf string, cleaner methodInfo) (n *configNod
 
 // clean object and apply clean functions on leaves
 func (parent *configNode) clean(obj interface{}) (objres interface{}, err error) {
+	spew.Printf("obj: %#+v \n", obj)
 	objres = obj
 	switch obj.(type) {
 	case []interface{}:
+		fmt.Printf("[]interface{}\n")
 		for i, subobj := range obj.([]interface{}) {
 			if subobj, err = parent.clean(subobj); err != nil {
 				fmt.Printf("can't clean %+v\n", subobj)
 			} else {
+				spew.Printf("---> replace %#+v\n", subobj)
 				obj.([]interface{})[i] = subobj
 			}
 		}
 	case bson.M:
-		objmap := obj.(bson.M)
+		fmt.Printf("bson.M\n")
+		objBson := obj.(bson.M)
 		for _, child := range parent.children {
-			subobj, exists := objmap[child.pathItem]
+			spew.Printf("---> before bson.M %#+v\n", objBson[child.pathItem])
+			subobj, exists := objBson[child.pathItem]
 			if !exists {
 				continue
 			}
 			if child.leaf {
 				// leaf case
-				objmap[child.pathItem], err = child.methodInfo.Clean(subobj)
+				objBson[child.pathItem], err = child.methodInfo.Clean(subobj)
 			} else {
-				child.clean(subobj)
+				newSubObj, _ := child.clean(subobj)
+				objBson[child.pathItem] = newSubObj
 			}
+			spew.Printf("---> after bson.M %#+v\n", objBson[child.pathItem])
 		}
 	case map[string]interface{}:
+		fmt.Printf("map[string]interface{}\n")
 		objmap := obj.(map[string]interface{})
 		for _, child := range parent.children {
 			subobj, exists := objmap[child.pathItem]
@@ -161,6 +170,17 @@ func (parent *configNode) clean(obj interface{}) (objres interface{}, err error)
 				child.clean(subobj)
 			}
 		}
+	case []bson.M:
+		fmt.Printf("[]bson.M\n")
+		for i, subobj := range obj.([]bson.M) {
+			clean, err := parent.clean(subobj)
+			if err != nil {
+				spew.Printf("can't clean %#+v\n", subobj)
+			} else {
+				spew.Printf("---> replace %#+v\n", clean)
+				obj.([]bson.M)[i] = clean.(bson.M)
+			}
+		}
 	default:
 		switch len(parent.children) {
 		case 0: // TODO nothing to clean
@@ -169,5 +189,6 @@ func (parent *configNode) clean(obj interface{}) (objres interface{}, err error)
 		default: // TODO log problem too many children
 		}
 	}
+	spew.Printf("return %#+v\n", objres)
 	return
 }

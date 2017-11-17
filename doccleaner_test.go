@@ -2,7 +2,7 @@ package doccleaner_test
 
 import "github.com/garnaud/doccleaner"
 import "encoding/json"
-import "fmt"
+
 import "gopkg.in/mgo.v2/bson"
 import "github.com/stretchr/testify/assert"
 import "strings"
@@ -17,9 +17,7 @@ func (c constantValueCleaner) Clean(value interface{}, args ...interface{}) (cha
 		c.changed = make([]interface{}, 0)
 	}
 
-	fmt.Printf("new change: %+v on existing change %+v\n", value, c.changed)
 	c.changed = append(c.changed, value)
-	fmt.Printf("changed! %+v\n", c.changed)
 	switch value.(type) {
 	default:
 		return "xxx", nil
@@ -89,7 +87,7 @@ args=[]
 
 }
 
-func TestBsonClean(t *testing.T) {
+func TestTooSimpleBsonClean(t *testing.T) {
 	// given
 	config := `
   ["leaf1"]
@@ -166,4 +164,32 @@ func TestMapArray(t *testing.T) {
 	} else {
 		t.Error(err)
 	}
+}
+
+func TestBson(t *testing.T) {
+	// given
+	config := `
+  ["customers.iuc"]
+	"method"="constantTransfo"
+  ["numid"]
+	"method"="constantTransfo"
+	["customers.wife.name"]
+	"method"="constantTransfo"
+	`
+	customer := bson.M{"iuc": "1234", "firstname": "homer", "lastname": "simpson", "wife": bson.M{"name": "marge"}}
+	customers := make([]bson.M, 1)
+	customers[0] = customer
+	input := bson.M{"customers": customers, "numid": 321}
+
+	cleaners := make(map[string]doccleaner.ValueCleaner)
+	cleaners["constantTransfo"] = &constantValueCleaner{}
+	docCleaner := doccleaner.NewDocCleaner(strings.NewReader(config), cleaners)
+	expected := `{"customers":[{"iuc":"xxx","firstname":"homer","lastname":"simpson","wife":{"name":"xxx"}}],"numid":1234}`
+
+	// test
+	docCleaner.Clean(input)
+
+	// check
+	output, _ := json.Marshal(input)
+	assert.JSONEq(t, expected, string(output))
 }
