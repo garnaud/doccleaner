@@ -53,12 +53,17 @@ func NewDocCleaner(configuration io.Reader) (docCleaner *DocCleaner) {
 func NewDocCleanerFromConfig(configuration io.Reader, cleaners map[string]ValueCleaner) (docCleaner *DocCleaner) {
 	docCleaner = &DocCleaner{root: &configNode{pathItem: "root"}, cleaners: cleaners}
 	var paths map[string]methodInfo
-	toml.DecodeReader(configuration, &paths)
+	md, err := toml.DecodeReader(configuration, &paths)
+	if err != nil {
+		fmt.Printf("metadata:%v\n", md)
+		panic(err)
+	}
 	for path, methodInfo := range paths {
 		if cleaner, ok := cleaners[methodInfo.MethodName]; !ok {
 			panic(errors.New("can't find method " + methodInfo.MethodName))
 		} else {
 			methodInfo.cleaner = cleaner
+			fmt.Printf("path: %v, %+v\n", path, methodInfo)
 		}
 		docCleaner.root.addLeaf(path, methodInfo)
 	}
@@ -138,13 +143,11 @@ func (s Set) Clean(value interface{}, args ...interface{}) (changed interface{},
 	if len(args) == 0 {
 		return value, nil
 	}
-	spew.Printf("clean %#+v to %#+v\n", value, args[0])
 	return args[0], nil
 }
 
 // clean object and apply clean functions on leaves
 func (parent *configNode) clean(obj interface{}) (objres interface{}, err error) {
-	spew.Printf("obj: %#+v \n", obj)
 	objres = obj
 	switch obj.(type) {
 	case []interface{}:
@@ -153,7 +156,6 @@ func (parent *configNode) clean(obj interface{}) (objres interface{}, err error)
 			if subobj, err = parent.clean(subobj); err != nil {
 				fmt.Printf("can't clean %+v\n", subobj)
 			} else {
-				spew.Printf("---> replace %#+v\n", subobj)
 				obj.([]interface{})[i] = subobj
 			}
 		}
@@ -161,7 +163,6 @@ func (parent *configNode) clean(obj interface{}) (objres interface{}, err error)
 		fmt.Printf("bson.M\n")
 		objBson := obj.(bson.M)
 		for _, child := range parent.children {
-			spew.Printf("---> before bson.M %#+v\n", objBson[child.pathItem])
 			subobj, exists := objBson[child.pathItem]
 			if !exists {
 				continue
@@ -173,7 +174,6 @@ func (parent *configNode) clean(obj interface{}) (objres interface{}, err error)
 				newSubObj, _ := child.clean(subobj)
 				objBson[child.pathItem] = newSubObj
 			}
-			spew.Printf("---> after bson.M %#+v\n", objBson[child.pathItem])
 		}
 	case map[string]interface{}:
 		fmt.Printf("map[string]interface{}\n")
@@ -197,7 +197,6 @@ func (parent *configNode) clean(obj interface{}) (objres interface{}, err error)
 			if err != nil {
 				spew.Printf("can't clean %#+v\n", subobj)
 			} else {
-				spew.Printf("---> replace %#+v\n", clean)
 				obj.([]bson.M)[i] = clean.(bson.M)
 			}
 		}
@@ -205,10 +204,10 @@ func (parent *configNode) clean(obj interface{}) (objres interface{}, err error)
 		switch len(parent.children) {
 		case 0: // TODO nothing to clean
 		case 1:
+			fmt.Printf("no type: %T\n", obj)
 			objres, err = parent.children[0].methodInfo.Clean(obj)
 		default: // TODO log problem too many children
 		}
 	}
-	spew.Printf("return %#+v\n", objres)
 	return
 }

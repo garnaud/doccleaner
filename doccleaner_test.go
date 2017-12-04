@@ -191,11 +191,11 @@ func TestBson(t *testing.T) {
 
 	cleaners := make(map[string]doccleaner.ValueCleaner)
 	cleaners["constantTransfo"] = &constantValueCleaner{}
-	docCleaner := doccleaner.NewDocCleaner(strings.NewReader(config))
+	cleaner := doccleaner.NewDocCleaner(strings.NewReader(config))
 	expected := `{"customers":[{"iuc":"xxx","firstname":"homer","lastname":"simpson","wife":{"name":"yyy","birthdate":"1979-05-27T07:32:00Z"}}],"numid":1234}`
 
 	// test
-	docCleaner.Clean(input)
+	cleaner.Clean(input)
 
 	// check
 	output, _ := json.Marshal(input)
