@@ -48,6 +48,7 @@ func NewDocCleaner(configuration io.Reader) (docCleaner *DocCleaner) {
 	cleaners := make(map[string]ValueCleaner)
 	cleaners["set"] = &Set{}
 	cleaners["nil"] = &Nil{}
+	cleaners["date"] = &Date{}
 	return NewDocCleanerFromConfig(configuration, cleaners)
 }
 
