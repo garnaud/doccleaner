@@ -66,7 +66,6 @@ func NewDocCleanerFromConfig(configuration io.Reader, cleaners map[string]ValueC
 			panic(errors.New("can't find method " + methodInfo.MethodName))
 		} else {
 			methodInfo.cleaner = cleaner
-			fmt.Printf("path: %v, %+v\n", path, methodInfo)
 		}
 		docCleaner.root.addLeaf(path, methodInfo)
 	}
@@ -177,7 +176,6 @@ func (parent *configNode) clean(obj interface{}) (objres interface{}, err error)
 	objres = obj
 	switch obj.(type) {
 	case []interface{}:
-		fmt.Printf("[]interface{}\n")
 		for i, subobj := range obj.([]interface{}) {
 			if subobj, err = parent.clean(subobj); err != nil {
 				fmt.Printf("can't clean %+v\n", subobj)
@@ -186,7 +184,6 @@ func (parent *configNode) clean(obj interface{}) (objres interface{}, err error)
 			}
 		}
 	case bson.M:
-		fmt.Printf("bson.M\n")
 		objBson := obj.(bson.M)
 		for _, child := range parent.children {
 			subobj, exists := objBson[child.pathItem]
@@ -202,7 +199,6 @@ func (parent *configNode) clean(obj interface{}) (objres interface{}, err error)
 			}
 		}
 	case map[string]interface{}:
-		fmt.Printf("map[string]interface{}\n")
 		objmap := obj.(map[string]interface{})
 		for _, child := range parent.children {
 			subobj, exists := objmap[child.pathItem]
@@ -217,7 +213,6 @@ func (parent *configNode) clean(obj interface{}) (objres interface{}, err error)
 			}
 		}
 	case []bson.M:
-		fmt.Printf("[]bson.M\n")
 		for i, subobj := range obj.([]bson.M) {
 			clean, err := parent.clean(subobj)
 			if err != nil {
