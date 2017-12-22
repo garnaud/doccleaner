@@ -46,6 +46,7 @@ func newMethodInfo(cleaner ValueCleaner) methodInfo {
 func NewDocCleaner(configuration io.Reader) (docCleaner *DocCleaner) {
 	cleaners := make(map[string]ValueCleaner)
 	cleaners["set"] = &Set{}
+	cleaners["nil"] = &Nil{}
 	return NewDocCleanerFromConfig(configuration, cleaners)
 }
 
@@ -144,6 +145,13 @@ func (s Set) Clean(value interface{}, args ...interface{}) (changed interface{},
 		return value, nil
 	}
 	return args[0], nil
+}
+
+type Nil struct {
+}
+
+func (n Nil) Clean(value interface{}, args ...interface{}) (changed interface{}, err error) {
+	return nil, nil
 }
 
 // clean object and apply clean functions on leaves
