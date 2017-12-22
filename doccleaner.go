@@ -8,6 +8,7 @@ import (
 	"gopkg.in/mgo.v2/bson"
 	"io"
 	"strings"
+	"time"
 )
 
 // DocCleaner contains config cleaners
@@ -139,7 +140,7 @@ func (parent *configNode) addLeaf(leaf string, cleaner methodInfo) (n *configNod
 type Set struct {
 }
 
-// Clean value method
+// Set a value method
 func (s Set) Clean(value interface{}, args ...interface{}) (changed interface{}, err error) {
 	if len(args) == 0 {
 		return value, nil
@@ -147,11 +148,27 @@ func (s Set) Clean(value interface{}, args ...interface{}) (changed interface{},
 	return args[0], nil
 }
 
+// Nil type allowed to replace current value by nil
 type Nil struct {
 }
 
+// Clean with nil value
 func (n Nil) Clean(value interface{}, args ...interface{}) (changed interface{}, err error) {
 	return nil, nil
+}
+
+// Date type allowed to replace current value by a date
+type Date struct {
+}
+
+// Clean value by a date. Will use method time.Parse(args[0], args[1]).
+func (d Date) Clean(value interface{}, args ...interface{}) (changed interface{}, err error) {
+	if len(args) != 2 {
+		return nil, nil
+	}
+	t, err := time.Parse(args[0].(string), args[1].(string))
+
+	return t, err
 }
 
 // clean object and apply clean functions on leaves
